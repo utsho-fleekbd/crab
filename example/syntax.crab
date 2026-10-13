@@ -17,11 +17,30 @@
 // Comparisons: < <= > >=; integer and boolean equality: == !=.
 // Logic: ! && ||; && and || short-circuit.
 // Unary + and - work on integers. String + concatenates two strings.
-// Precedence, highest first: unary, * /, + -, comparisons, equality, &&, ||, =.
+// Precedence: indexing/calls, unary, * /, + -, .., comparisons, equality, &&, ||, =.
 // Binary operators associate left; assignment associates right and returns a value.
-// Use parentheses to group expressions. No semicolons or type annotations needed.
-// Strings use double quotes, may span lines, and preserve backslashes literally.
+// Use parentheses to group expressions. No statement semicolons are needed.
+// Optional annotations provide empty-collection types: var xs: List<Number> = []
+// Strings use single or double quotes, may span lines, and preserve backslashes literally.
 // Blocks and all control-flow bodies have local declarations, even without braces.
 // Assignments may update outer variables; var may shadow or replace a declaration.
 // For ranges are inclusive and ascending, with bounds evaluated once.
 // Assigning the loop variable does not change the iteration sequence.
+
+// COLLECTIONS
+//   [1, 2, 3]                   homogeneous list; trailing commas allowed
+//   [0; 10]                     ten copies, evaluated once
+//   [[false; 10]; 10]            independent nested rows
+//   [name: 'Crab', age: 1]       record with fixed, individually typed fields
+//   ['Alice': 90, 'Bob': 85]     dictionary with homogeneous keys and values
+//   var xs: List<Number> = []    typed empty list
+//   var m: Map<String, Number> = [:]  typed empty dictionary
+//   xs[0] = 9                   indexed mutation; indices start at zero
+//   person.name                 same as person['name']; literal record field
+//   map[key] = value            dictionary insertion or replacement
+//   1..10                       inclusive lazy range; reversed range is empty
+//   collect(1..10)              materialize a range as a list
+//   for item in collection statement   iterate a snapshot of a List, Map, or Range
+// Built-ins: len, push, pop, keys, values, has, get, remove, collect.
+// pop(list) returns [items: remainingList, value: lastElement].
+// Built-ins return new collection values; use xs = push(xs, value) to retain them.

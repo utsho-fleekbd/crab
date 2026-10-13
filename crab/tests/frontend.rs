@@ -247,3 +247,105 @@ fn nested_scope_snapshots_do_not_mutate_parent_bindings() {
     assert!(messages(&compilation).is_empty());
     assert!(!messages(&Compilation::compile("y", initial.bindings)).is_empty());
 }
+
+#[test]
+fn collection_types_are_structural_and_empty_values_keep_their_type() {
+    for (source, expected) in [
+        ("var a = [1, 2] a", "List<Number>"),
+        ("var a = ['a', 'b'] a", "List<String>"),
+        (
+            "var a: List<List<Boolean>> = [[], [true]] a",
+            "List<List<Boolean>>",
+        ),
+        (
+            "var a: Map<String, List<Number>> = [:] a",
+            "Map<String, List<Number>>",
+        ),
+        (
+            "var a = [name: 'Crab', age: 1] a",
+            "[age: Number, name: String]",
+        ),
+        ("var a = 1..100000000000000000000000000000000000 a", "Range"),
+    ] {
+        let compilation = compile(source);
+        assert!(
+            messages(&compilation).is_empty(),
+            "{source}: {:?}",
+            messages(&compilation)
+        );
+        let BoundStatement::Expression(statement) = compilation.bound_program.last().unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(statement.expression.get_type().to_string(), expected);
+    }
+}
+
+#[test]
+fn invalid_collection_types_and_operations_are_rejected() {
+    for source in [
+        "var a = []",
+        "var a = [:]",
+        "var a = [1, false]",
+        "var a = [[1], [false]]",
+        "var a = ['x': 1, 'y': false]",
+        "var a = [1: 2, '1': 3]",
+        "var a = [true: 1]",
+        "var a = [x: 1, x: 2]",
+        "var a: List<Number> = [false]",
+        "var a: Map<Boolean, Number> = [:]",
+        "var a = [1; true]",
+        "var a = true..2",
+        "var a = [1] a[0] = false",
+        "var a = [1] print a['0']",
+        "print 1[0]",
+        "var a = [x: 1] print a.y",
+        "var a = [x: 1] var key = 'x' print a[key]",
+        "var a = [x: 1] a.x = false",
+        "var a = [x: 1] a.y = 2",
+        "var a = ['x': 1] a[2] = 3",
+        "(1 + 2) = 4",
+        "collect(1..2)[0] = 3",
+        "push([1], false)",
+        "len(1)",
+        "len()",
+        "len([1], [2])",
+        "unknown([1])",
+        "collect([1])",
+        "get([1], 0, false)",
+        "has([1], '0')",
+        "pop(1)",
+        "values([x: 1, y: false])",
+        "var key = 'x' remove([x: 1], key)",
+        "for value in 1 print value",
+        "for value in [x: 1] print value",
+        "for value in [1] print value print value",
+        "var a = ['x': 1] a = ['x': false]",
+    ] {
+        assert!(!messages(&compile(source)).is_empty(), "accepted {source}");
+    }
+}
+
+#[test]
+fn missing_collection_delimiters_and_invalid_entries_terminate() {
+    for source in [
+        "[",
+        "[1,",
+        "[1;",
+        "[1; 2",
+        "['x':",
+        "[name:",
+        "[name: 1,",
+        "len(",
+        "len([1]",
+        "var a = [1] a[",
+        "var a: List<Number = []",
+        "var a: Map< = [:]",
+        "[1, 'a': 2]",
+        "[x: 1, 'y': 2]",
+        "[1..]",
+        "1...2",
+    ] {
+        assert!(!messages(&compile(source)).is_empty(), "accepted {source}");
+    }
+}

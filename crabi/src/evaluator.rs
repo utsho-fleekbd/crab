@@ -12,7 +12,7 @@ use crab::{
     },
 };
 
-type EvaluationResult = Result<Object, Diagnostic>;
+pub(super) type EvaluationResult = Result<Object, Diagnostic>;
 
 pub(crate) struct Evaluator {
     bound_statements: Rc<Vec<BoundStatement>>,
@@ -39,7 +39,7 @@ impl Evaluator {
         Ok(object)
     }
 
-    fn with_scope(
+    pub(super) fn with_scope(
         &mut self,
         evaluate: impl FnOnce(&mut Self) -> EvaluationResult,
     ) -> EvaluationResult {
@@ -50,8 +50,9 @@ impl Evaluator {
         result
     }
 
-    fn evaluate_statement(&mut self, statement: &BoundStatement) -> EvaluationResult {
+    pub(super) fn evaluate_statement(&mut self, statement: &BoundStatement) -> EvaluationResult {
         match statement {
+            BoundStatement::Each(statement) => self.evaluate_each(statement),
             BoundStatement::Expression(statement) => {
                 self.evaluate_expression(&statement.expression)
             }
@@ -127,9 +128,10 @@ impl Evaluator {
         }
     }
 
-    fn evaluate_expression(&mut self, expression: &BoundExpression) -> EvaluationResult {
+    pub(super) fn evaluate_expression(&mut self, expression: &BoundExpression) -> EvaluationResult {
         let error = |message: &str| Diagnostic::new(expression.get_position(), message.into());
         match expression {
+            BoundExpression::Collection(expression) => self.evaluate_collection(expression),
             BoundExpression::Literal(literal) => Ok(literal.value.clone()),
             BoundExpression::Variable(variable) => self
                 .bindings
@@ -197,21 +199,6 @@ impl Evaluator {
                     (Binary::Equal, a, b) => Ok(Object::Boolean(a == b)),
                     (Binary::NotEqual, a, b) => Ok(Object::Boolean(a != b)),
                     _ => Err(error("Invalid binary operands")),
-                }
-            }
-            BoundExpression::Assignment(assignment) => {
-                let object = self.evaluate_expression(&assignment.expression)?;
-                if self
-                    .bindings
-                    .borrow_mut()
-                    .reset(assignment.name.clone(), object.clone())
-                {
-                    Ok(object)
-                } else {
-                    Err(error(&format!(
-                        "Name '{}' is not initialized",
-                        assignment.name
-                    )))
                 }
             }
         }

@@ -62,6 +62,16 @@ impl<'a> Lexer<'a> {
                 TokenKind::Whitespace
             }
             '/' => TokenKind::Slash,
+            '[' => TokenKind::OpenBracket,
+            ']' => TokenKind::CloseBracket,
+            ',' => TokenKind::Comma,
+            ':' => TokenKind::Colon,
+            ';' => TokenKind::Semicolon,
+            '.' if self.peek() == Some('.') => {
+                self.advance();
+                TokenKind::DotDot
+            }
+            '.' => TokenKind::Dot,
             '(' => TokenKind::OpenParen,
             ')' => TokenKind::CloseParen,
             '{' => TokenKind::OpenBrace,
@@ -92,9 +102,9 @@ impl<'a> Lexer<'a> {
                     _ => unreachable!(),
                 }
             }
-            '"' => {
+            '\'' | '"' => {
                 let content_start = self.current;
-                while self.peek().is_some_and(|ch| ch != '"') {
+                while self.peek().is_some_and(|next| next != ch) {
                     self.advance();
                 }
                 let content_end = self.current;

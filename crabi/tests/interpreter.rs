@@ -437,3 +437,161 @@ fn game_of_life_handles_still_lifes_oscillators_edges_and_large_grids() {
         assert_output(&source, &life_output(width, height, generations, &seed));
     }
 }
+
+#[test]
+fn lists_records_dictionaries_and_nested_mutations_work() {
+    assert_output("var a = [1, 2, 3,] a[1] = 9 print a print a[1] print [0; 0] var empty: List<Number> = [] empty = push(empty, 4) print empty var p = [name: 'Crab', age: 1, active: true,] p.age = 2 print p['name'] print p.age print p var d: Map<String, Number> = [:] d['first'] = 1 d.second = 2 d['first'] = 3 print d print keys(d) print values(d)",
+        "[1, 9, 3]\n9\n[]\n[4]\nCrab\n2\n[name: \"Crab\", age: 2, active: true]\n[\"first\": 3, \"second\": 2]\n[\"first\", \"second\"]\n[3, 2]\n");
+    assert_output("var users = [a: [scores: [1, 2]]] users.a.scores[0] = 99 print users.a.scores var d = ['a': [1]] d['b'] = [2] d.b[0] = 3 print d", "[99, 2]\n[\"a\": [1], \"b\": [3]]\n");
+}
+
+#[test]
+fn repetition_and_collection_assignment_have_independent_value_semantics() {
+    assert_output("var grid = [[0; 2]; 2] var copy = grid grid[0][0] = 7 print grid print copy var row = grid[0] row[1] = 8 print grid print row var record = [a: grid] var other = record other.a[1][1] = 9 print record.a print other.a var d = ['x': grid] var e = d e.x[0][0] = 3 print d.x print e.x",
+        "[[7, 0], [0, 0]]\n[[0, 0], [0, 0]]\n[[7, 0], [0, 0]]\n[7, 8]\n[[7, 0], [0, 0]]\n[[7, 0], [0, 9]]\n[[7, 0], [0, 0]]\n[[3, 0], [0, 0]]\n");
+    assert_output(
+        "var a = [1] { a[0] = 2 } print a { var a = [3] a[0] = 4 print a } print a",
+        "[2]\n[4]\n[2]\n",
+    );
+}
+
+#[test]
+fn ranges_are_lazy_inclusive_and_support_arbitrary_precision() {
+    assert_output("var r = 1..4 print r print len(r) print collect(r) print collect(4..1) print len(4..1) print len(0..100000000000000000000000000000000000000) for n in 1000000000000000000000000000000..1000000000000000000000000000002 print n for n in 4..1 print n print collect(-2..1)",
+        "1..4\n4\n[1, 2, 3, 4]\n[]\n0\n100000000000000000000000000000000000001\n1000000000000000000000000000000\n1000000000000000000000000000001\n1000000000000000000000000000002\n[-2, -1, 0, 1]\n");
+}
+
+#[test]
+fn iteration_uses_a_snapshot_and_local_loop_variables() {
+    assert_output("var a = [1, 2] var n = 99 for n in a { print n a[1] = 9 } print a print n for item in ['x': 4, 'y': 5] print item", "1\n2\n[1, 9]\n99\n4\n5\n");
+}
+
+#[test]
+fn collection_builtins_are_typed_and_do_not_mutate_their_arguments() {
+    assert_output("var a = [1, 2] print len(a) print push(a, 3) print a var result = pop(a) print result.items print result.value print a print keys(a) print values(a) print has(a, -1) print has(a, 1) print get(a, 99, 7) print remove(a, 0) var d = ['a': 1, 'b': 2, 'c': 3] var trimmed = remove(d, 'b') trimmed['d'] = 4 trimmed['c'] = 5 print keys(trimmed) print values(trimmed) print d print get(d, 'missing', 0) print has(d, 'missing') print len('?') var p = [x: 1, y: 2] print keys(p) print values(p) print get(p, 'missing', 7) print remove(p, 'x') print has(p, 'missing')",
+        "2\n[1, 2, 3]\n[1, 2]\n[1]\n2\n[1, 2]\n[0, 1]\n[1, 2]\nfalse\ntrue\n7\n[2]\n[\"a\", \"c\", \"d\"]\n[1, 5, 4]\n[\"a\": 1, \"b\": 2, \"c\": 3]\n0\nfalse\n1\n[\"x\", \"y\"]\n[1, 2]\n7\n[y: 2]\nfalse\n");
+}
+
+#[test]
+fn structural_equality_ignores_dictionary_and_record_insertion_order() {
+    assert_output("print [x: 1, y: true] == [y: true, x: 1] print ['a': 1, 'b': 2] == ['b': 2, 'a': 1] print [[1, 2]] == [[1, 2]] print [1, 2] != [2, 1] print 'a' == 'a' print 1..2 == 1..2", "true\ntrue\ntrue\ntrue\ntrue\ntrue\n");
+}
+
+#[test]
+fn dictionary_keys_are_exact_and_duplicate_keys_replace_in_place() {
+    assert_output("var a = ['1': 2, '01': 3, '1': 4] print a print keys(a) print a['01'] var b = [10000000000000000000000: 1, -1: 2] print b[-1] print keys(b) print remove(a, 'not present')", "[\"1\": 4, \"01\": 3]\n[\"1\", \"01\"]\n3\n2\n[10000000000000000000000, -1]\n[\"1\": 4, \"01\": 3]\n");
+}
+
+#[test]
+fn collection_expression_side_effects_run_once_in_order() {
+    assert_output("var i = 0 var a = [[0, 0], [0, 0]] a[(i = i + 1)][(i = i - 1)] = (i = i + 7) print a print i var calls = 0 print [(calls = calls + 1); (calls = calls + 1)] print calls print get([1], 0, (calls = calls + 1)) print calls", "[[0, 0], [7, 0]]\n7\n[1, 1]\n2\n1\n3\n");
+}
+
+#[test]
+fn collection_failures_are_runtime_diagnostics() {
+    for source in [
+        "print [1][-1]",
+        "print [1][9]",
+        "print [1][9999999999999999999999999]",
+        "var a = [1] a[9] = 2",
+        "var a = [1] a[-1] = 2",
+        "print ['a': 1]['b']",
+        "print pop([0; 0])",
+        "print [0; -1]",
+        "print [0; 99999999999999999999999999]",
+        "print [0; 18446744073709551615]",
+        "print collect(0..99999999999999999999999999)",
+        "print remove([1], 9)",
+        "var d = ['a': [1]] d.b[0] = 2",
+    ] {
+        let output = file(source);
+        assert_eq!(
+            output.status.code(),
+            Some(70),
+            "{source}: {}",
+            stderr(&output)
+        );
+        assert!(!stderr(&output).contains("panicked"), "{source}");
+    }
+}
+
+#[test]
+fn collection_repl_failures_roll_back_nested_mutations_and_aliases() {
+    let output = run(&[], "var a = [[1]]\nvar b = a\nvar d = ['x': a]\n\na[0][0] = 9\nd.x[0][0] = 8\nvar added = [1]\nprint 1 / 0\n\nprint a\nprint b\nprint d.x\n\nprint added\n\n@exit\n\n");
+    assert!(output.status.success());
+    assert!(stderr(&output).contains("Division by zero"));
+    assert!(stderr(&output).contains("Name 'added' is not defined"));
+    assert!(
+        stdout(&output).contains("[[1]]\n[[1]]\n[[1]]\n()\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn collection_programs_produce_the_expected_results() {
+    assert_output(include_str!("../../example/arrays.crab"),
+        "[10, 2, 3, 4, 5]\n[0, 0, 0]\n[[false, true], [false, false]]\n[42]\n[]\n42\nUtsho\n26\n[\"Alice\", \"Bob\"]\n[90, 85]\ntrue\n0\n[\"Alice\": 90]\n");
+    assert_output(
+        include_str!("../../example/insertion_sort.crab"),
+        "[-3, 0, 2, 7, 7, 42, 1000000000000000000000000]\n",
+    );
+    let primes: Vec<_> = (2..=100)
+        .filter(|n| !(2..*n).any(|divisor| n % divisor == 0))
+        .collect();
+    assert_output(
+        include_str!("../../example/prime_sieve.crab"),
+        &format!("{primes:?}\n"),
+    );
+    assert_output(
+        include_str!("../../example/frequency_count.crab"),
+        "[\"crab\": 3, \"rust\": 2, \"arrays\": 1]\ncrab\n3\nrust\n2\narrays\n1\n",
+    );
+}
+
+#[test]
+fn array_game_of_life_matches_the_reference_simulation() {
+    assert_output(
+        include_str!("../../example/game_of_life_arrays.crab"),
+        &life_output(10, 10, 4, &[(2, 1), (3, 2), (1, 3), (2, 3), (3, 3)]),
+    );
+}
+
+#[test]
+fn insertion_sort_handles_empty_singleton_duplicates_and_reversed_inputs() {
+    let example = include_str!("../../example/insertion_sort.crab");
+    for values in [
+        vec![],
+        vec![1],
+        vec![3, 3, 3],
+        vec![5, 4, 3, 2, 1],
+        vec![-5, 0, -1, 2],
+    ] {
+        let input = if values.is_empty() {
+            "[0; 0]".into()
+        } else {
+            format!("{values:?}")
+        };
+        let source = example.replace("[42, -3, 7, 7, 0, 1000000000000000000000000, 2]", &input);
+        let mut sorted = values;
+        sorted.sort();
+        assert_output(&source, &format!("{sorted:?}\n"));
+    }
+}
+
+#[test]
+fn breadth_first_search_reconstructs_a_shortest_path_and_detects_unreachable_goals() {
+    let source = include_str!("../../example/pathfinding.crab");
+    assert_output(source, "Shortest path length:\n10\nPath:\n[x: 0, y: 0]\n[x: 1, y: 0]\n[x: 2, y: 0]\n[x: 3, y: 0]\n[x: 4, y: 0]\n[x: 5, y: 0]\n[x: 5, y: 1]\n[x: 5, y: 2]\n[x: 5, y: 3]\n[x: 5, y: 4]\n[x: 5, y: 5]\n");
+    let source = source.replace(
+        "distance[start.y][start.x] = 0",
+        "distance[start.y][start.x] = 0 maze[goal.y][goal.x] = 1",
+    );
+    assert_output(&source, "No path found\n");
+}
+
+#[test]
+fn empty_collection_context_flows_through_assignments_records_and_builtins() {
+    assert_output("var a: List<List<Number>> = [[]] a = push(a, []) print a a[0] = [] print a var d: Map<String, List<Number>> = [:] d.x = [] print get(d, 'x', []) print get(d, 'missing', []) var p = [items: [1]] p = [items: []] print get(p, 'items', []) d = [:] print d print keys(d) print values(d)",
+        "[[], []]\n[[], []]\n[]\n[]\n[]\n[:]\n[]\n[]\n");
+}

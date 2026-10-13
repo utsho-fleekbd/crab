@@ -1,9 +1,11 @@
 # Change Log
 
-All notable changes to the "crab" extension will be documented in this file.
+## 0.0.2
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+- Highlight collection built-ins, type annotations, ranges, and collection punctuation.
+- Add square bracket matching and single-quoted string support.
+- Recognize `in` loops and highlight `!=` as a comparison operator.
 
-## [Unreleased]
+## 0.0.1
 
-- Initial release
+- Initial syntax highlighting and language configuration.

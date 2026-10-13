@@ -6,24 +6,24 @@ use crate::{
         types::{Object, Type},
     },
     syntax::syntax_tree::{
-        AssignmentExpression, BinaryExpression, BlockStatement, Expression, ForStatement,
-        IfStatement, LiteralExpression, NameExpression, ParenthesizedExpression, Statement,
-        UnaryExpression, VarStatement, WhileStatement,
+        BinaryExpression, BlockStatement, Expression, ForStatement, IfStatement, LiteralExpression,
+        NameExpression, ParenthesizedExpression, Statement, UnaryExpression, VarStatement,
+        WhileStatement,
     },
 };
 
 use super::{
     bindings::Bindings,
     bound_tree::{
-        BoundAssignmentExpression, BoundBinaryExpression, BoundBinaryOperator, BoundBlockStatement,
-        BoundExpression, BoundExpressionStatement, BoundForStatement, BoundIfStatement,
-        BoundLiteralExpression, BoundPrintStatement, BoundStatement, BoundUnaryExpression,
-        BoundUnaryOperator, BoundVarStatement, BoundVariableExpression, BoundWhileStatement,
+        BoundBinaryExpression, BoundBinaryOperator, BoundBlockStatement, BoundExpression,
+        BoundExpressionStatement, BoundForStatement, BoundIfStatement, BoundLiteralExpression,
+        BoundPrintStatement, BoundStatement, BoundUnaryExpression, BoundUnaryOperator,
+        BoundVarStatement, BoundVariableExpression, BoundWhileStatement,
     },
 };
 
 pub(crate) struct Binder {
-    bindings: Rc<RefCell<Bindings>>,
+    pub(super) bindings: Rc<RefCell<Bindings>>,
     pub(crate) diagnostic_bag: Rc<RefCell<DiagnosticBag>>,
 }
 
@@ -59,11 +59,15 @@ impl Binder {
             Statement::If(statement) => self.bind_if_statement(statement),
             Statement::While(statement) => self.bind_while_statement(statement),
             Statement::For(statement) => self.bind_for_statement(statement),
+            Statement::Each(statement) => self.bind_each_statement(statement),
         }
     }
 
     fn bind_var_statement(&mut self, statement: VarStatement) -> BoundStatement {
-        let bound_expression = self.bind_expression(statement.expression);
+        if let Some(annotation) = &statement.annotation {
+            self.validate_type(annotation, &statement.identifier.position);
+        }
+        let bound_expression = self.bind_with_type(statement.expression, statement.annotation);
         self.bindings.borrow_mut().set(
             statement.identifier.lexeme.clone(),
             bound_expression.get_type(),
@@ -86,7 +90,7 @@ impl Binder {
     }
 
     // Every control-flow body has its own lexical scope, including unbraced bodies.
-    fn bind_scoped_statement(&mut self, statement: Statement) -> BoundStatement {
+    pub(super) fn bind_scoped_statement(&mut self, statement: Statement) -> BoundStatement {
         match statement {
             Statement::Block(block) => self.bind_block_statement(block),
             statement => self.bind_block_statement(BlockStatement {
@@ -167,15 +171,35 @@ impl Binder {
         }
     }
 
-    fn bind_expression(&mut self, expression: Expression) -> BoundExpression {
-        match expression {
+    pub(super) fn bind_expression(&mut self, expression: Expression) -> BoundExpression {
+        self.bind_with_type(expression, None)
+    }
+
+    pub(super) fn bind_with_type(
+        &mut self,
+        expression: Expression,
+        expected: Option<Type>,
+    ) -> BoundExpression {
+        let bound = match expression {
             Expression::Literal(expression) => self.bind_literal_expression(expression),
             Expression::Name(expression) => self.bind_name_expression(expression),
             Expression::Parenthesized(expression) => self.bind_parenthesized_expression(expression),
             Expression::Unary(expression) => self.bind_unary_expression(expression),
             Expression::Binary(expression) => self.bind_binary_expression(expression),
-            Expression::Assignment(expression) => self.bind_assignment_expression(expression),
+            Expression::Collection(expression) => {
+                self.bind_collection(expression, expected.clone())
+            }
+        };
+        if let Some(expected) = expected {
+            if bound.get_type() != expected {
+                self.diagnostic_bag.borrow_mut().invalid_expression_type(
+                    bound.get_position(),
+                    expected,
+                    bound.get_type(),
+                );
+            }
         }
+        bound
     }
 
     fn bind_literal_expression(&self, expression: LiteralExpression) -> BoundExpression {
@@ -254,40 +278,6 @@ impl Binder {
                 expression.operator.kind.clone(),
                 left.get_type(),
                 right.get_type(),
-            );
-            BoundExpression::Literal(BoundLiteralExpression::new(
-                Object::Unit,
-                expression.get_position(),
-            ))
-        }
-    }
-
-    fn bind_assignment_expression(&mut self, expression: AssignmentExpression) -> BoundExpression {
-        let bound_expression = self.bind_expression(*expression.expression.clone());
-        let typ = self.bindings.borrow().get(&expression.identifier.lexeme);
-        if let Some(typ) = typ {
-            if typ == bound_expression.get_type() {
-                BoundExpression::Assignment(BoundAssignmentExpression::new(
-                    expression.identifier.lexeme.clone(),
-                    bound_expression,
-                    expression.get_position(),
-                ))
-            } else {
-                self.diagnostic_bag.borrow_mut().invalid_assignment(
-                    expression.get_position(),
-                    expression.identifier.lexeme.clone(),
-                    typ,
-                    bound_expression.get_type(),
-                );
-                BoundExpression::Literal(BoundLiteralExpression::new(
-                    Object::Unit,
-                    expression.get_position(),
-                ))
-            }
-        } else {
-            self.diagnostic_bag.borrow_mut().undefined_name(
-                expression.get_position(),
-                expression.identifier.lexeme.clone(),
             );
             BoundExpression::Literal(BoundLiteralExpression::new(
                 Object::Unit,

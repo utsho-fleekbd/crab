@@ -8,10 +8,13 @@ Repository: https://github.com/utshomh/crab
 ## Features
 
 - Syntax highlighting for:
-  - Keywords (`var`, `print`, `if`, `else`, `while`, `for`, `to`)
+  - Keywords (`var`, `print`, `if`, `else`, `while`, `for`, `to`, `in`)
   - Booleans (`true`, `false`)
   - Numbers
-  - Strings (including multi-line)
+  - Single- and double-quoted strings (including multi-line)
+  - Collection built-ins (`len`, `push`, `pop`, `keys`, `values`, `has`, `get`, `remove`, `collect`)
+  - Type annotations (`Number`, `String`, `Boolean`, `List`, `Map`, `Range`)
+  - Ranges, dictionary separators, and field access
   - Operators
   - Comments (`//`)
   - Identifiers
@@ -26,12 +29,12 @@ Repository: https://github.com/utshomh/crab
 npx @vscode/vsce package
 ```
 
-This creates a file named something like crab-0.0.1.vsix
+This creates a file named something like crab-0.0.2.vsix
 
 2. Install the extension:
 
 ```bash
-code --install-extension crab-0.0.1.vsix
+code --install-extension crab-0.0.2.vsix
 ```
 
 (You can also right-click the .vsix file in VS Code and choose “Install Extension VSIX”.)

@@ -26,14 +26,17 @@ impl Environment {
         }
     }
 
-    pub(crate) fn reset(&mut self, name: String, object: Object) -> bool {
-        if let Some(value) = self.bindings.get_mut(&name) {
-            *value = object;
-            true
+    pub(crate) fn update<T>(
+        &mut self,
+        name: &str,
+        update: impl FnOnce(&mut Object) -> T,
+    ) -> Option<T> {
+        if let Some(value) = self.bindings.get_mut(name) {
+            Some(update(value))
         } else if let Some(outer) = &self.outer {
-            outer.borrow_mut().reset(name, object)
+            outer.borrow_mut().update(name, update)
         } else {
-            false
+            None
         }
     }
 

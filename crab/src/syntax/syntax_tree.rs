@@ -1,4 +1,7 @@
-use crate::common::{diagnostic::Position, types::Object};
+use crate::common::{
+    diagnostic::Position,
+    types::{Object, Type},
+};
 
 use super::token::Token;
 
@@ -9,7 +12,7 @@ pub enum Expression {
     Parenthesized(ParenthesizedExpression),
     Unary(UnaryExpression),
     Binary(BinaryExpression),
-    Assignment(AssignmentExpression),
+    Collection(CollectionExpression),
 }
 
 impl Expression {
@@ -20,7 +23,7 @@ impl Expression {
             Expression::Parenthesized(expression) => expression.get_position(),
             Expression::Unary(expression) => expression.get_position(),
             Expression::Binary(expression) => expression.get_position(),
-            Expression::Assignment(expression) => expression.get_position(),
+            Expression::Collection(expression) => expression.position.clone(),
         }
     }
 }
@@ -121,28 +124,6 @@ impl BinaryExpression {
 }
 
 #[derive(Debug, Clone)]
-pub struct AssignmentExpression {
-    pub(crate) identifier: Token,
-    pub(crate) expression: Box<Expression>,
-}
-
-impl AssignmentExpression {
-    pub(super) fn new(identifier: Token, expression: Expression) -> Self {
-        Self {
-            identifier,
-            expression: Box::new(expression),
-        }
-    }
-
-    pub(crate) fn get_position(&self) -> Position {
-        Position::from(
-            self.identifier.position.clone(),
-            self.expression.get_position(),
-        )
-    }
-}
-
-#[derive(Debug, Clone)]
 pub enum Statement {
     Expression(ExpressionStatement),
     Print(PrintStatement),
@@ -151,6 +132,7 @@ pub enum Statement {
     If(IfStatement),
     While(WhileStatement),
     For(ForStatement),
+    Each(EachStatement),
 }
 
 #[derive(Debug, Clone)]
@@ -179,6 +161,7 @@ impl PrintStatement {
 pub struct VarStatement {
     pub(crate) identifier: Token,
     pub(crate) expression: Expression,
+    pub(crate) annotation: Option<Type>,
 }
 
 impl VarStatement {
@@ -186,6 +169,7 @@ impl VarStatement {
         Self {
             identifier,
             expression,
+            annotation: None,
         }
     }
 }
@@ -259,4 +243,29 @@ impl ForStatement {
             body: Box::new(body),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct CollectionExpression {
+    pub(crate) kind: CollectionKind,
+    pub(crate) position: Position,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum CollectionKind {
+    List(Vec<Expression>),
+    Repeat(Box<Expression>, Box<Expression>),
+    Record(Vec<(String, Expression)>),
+    Map(Vec<(Expression, Expression)>),
+    Range(Box<Expression>, Box<Expression>),
+    Index(Box<Expression>, Box<Expression>),
+    Call(String, Vec<Expression>),
+    Assign(Box<Expression>, Box<Expression>),
+}
+
+#[derive(Debug, Clone)]
+pub struct EachStatement {
+    pub(crate) identifier: Token,
+    pub(crate) iterable: Expression,
+    pub(crate) body: Box<Statement>,
 }

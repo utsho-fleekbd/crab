@@ -23,6 +23,14 @@ pub enum TokenKind {
     Pipe,
     PipePipe,
 
+    OpenBracket,
+    CloseBracket,
+    Comma,
+    Colon,
+    Semicolon,
+    Dot,
+    DotDot,
+    In,
     OpenParen,
     CloseParen,
     OpenBrace,
@@ -60,6 +68,7 @@ impl TokenKind {
             "while" => TokenKind::While,
             "for" => TokenKind::For,
             "to" => TokenKind::To,
+            "in" => TokenKind::In,
             _ => TokenKind::Identifier,
         }
     }
@@ -87,6 +96,14 @@ impl Display for TokenKind {
             TokenKind::Pipe => write!(f, "|"),
             TokenKind::PipePipe => write!(f, "||"),
 
+            TokenKind::OpenBracket => write!(f, "["),
+            TokenKind::CloseBracket => write!(f, "]"),
+            TokenKind::Comma => write!(f, ","),
+            TokenKind::Colon => write!(f, ":"),
+            TokenKind::Semicolon => write!(f, ";"),
+            TokenKind::Dot => write!(f, "."),
+            TokenKind::DotDot => write!(f, ".."),
+            TokenKind::In => write!(f, "in"),
             TokenKind::OpenParen => write!(f, "("),
             TokenKind::CloseParen => write!(f, ")"),
             TokenKind::OpenBrace => write!(f, "{{"),

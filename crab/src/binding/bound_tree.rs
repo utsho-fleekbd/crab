@@ -140,6 +140,21 @@ impl BoundBinaryOperator {
     }
 
     pub fn bind(operator_kind: TokenKind, left_type: Type, right_type: Type) -> Option<Self> {
+        if left_type == right_type
+            && matches!(operator_kind, TokenKind::EqualEqual | TokenKind::BangEqual)
+        {
+            return Some(Self::new(
+                operator_kind.clone(),
+                if operator_kind == TokenKind::EqualEqual {
+                    BoundBinaryOperationKind::Equal
+                } else {
+                    BoundBinaryOperationKind::NotEqual
+                },
+                left_type,
+                right_type,
+                Type::Boolean,
+            ));
+        }
         let operators = [
             BoundBinaryOperator::new(
                 TokenKind::Plus,
@@ -261,7 +276,7 @@ pub enum BoundExpression {
     Variable(BoundVariableExpression),
     Unary(BoundUnaryExpression),
     Binary(BoundBinaryExpression),
-    Assignment(BoundAssignmentExpression),
+    Collection(BoundCollectionExpression),
 }
 
 impl BoundExpression {
@@ -271,7 +286,7 @@ impl BoundExpression {
             BoundExpression::Variable(expression) => expression.get_type(),
             BoundExpression::Unary(expression) => expression.get_type(),
             BoundExpression::Binary(expression) => expression.get_type(),
-            BoundExpression::Assignment(expression) => expression.get_type(),
+            BoundExpression::Collection(expression) => expression.typ.clone(),
         }
     }
 
@@ -281,7 +296,7 @@ impl BoundExpression {
             BoundExpression::Variable(expression) => expression.get_position(),
             BoundExpression::Unary(expression) => expression.get_position(),
             BoundExpression::Binary(expression) => expression.get_position(),
-            BoundExpression::Assignment(expression) => expression.get_position(),
+            BoundExpression::Collection(expression) => expression.position.clone(),
         }
     }
 }
@@ -393,31 +408,6 @@ impl BoundBinaryExpression {
 }
 
 #[derive(Debug, Clone)]
-pub struct BoundAssignmentExpression {
-    pub name: String,
-    pub expression: Box<BoundExpression>,
-    position: Position,
-}
-
-impl BoundAssignmentExpression {
-    pub fn new(name: String, expression: BoundExpression, position: Position) -> Self {
-        Self {
-            name,
-            expression: Box::new(expression),
-            position,
-        }
-    }
-
-    pub fn get_type(&self) -> Type {
-        self.expression.get_type()
-    }
-
-    fn get_position(&self) -> Position {
-        self.position.clone()
-    }
-}
-
-#[derive(Debug, Clone)]
 pub enum BoundStatement {
     Expression(BoundExpressionStatement),
     Print(BoundPrintStatement),
@@ -426,6 +416,7 @@ pub enum BoundStatement {
     If(BoundIfStatement),
     While(BoundWhileStatement),
     For(BoundForStatement),
+    Each(BoundEachStatement),
 }
 
 #[derive(Debug, Clone)]
@@ -534,4 +525,34 @@ impl BoundForStatement {
             body: Box::new(body),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct BoundCollectionExpression {
+    pub kind: BoundCollectionKind,
+    pub typ: Type,
+    pub position: Position,
+}
+
+#[derive(Debug, Clone)]
+pub enum BoundCollectionKind {
+    List(Vec<BoundExpression>),
+    Repeat(Box<BoundExpression>, Box<BoundExpression>),
+    Record(Vec<(String, BoundExpression)>),
+    Map(Vec<(BoundExpression, BoundExpression)>),
+    Range(Box<BoundExpression>, Box<BoundExpression>),
+    Index(Box<BoundExpression>, Box<BoundExpression>),
+    Call(String, Vec<BoundExpression>),
+    Assign {
+        name: String,
+        indices: Vec<BoundExpression>,
+        value: Box<BoundExpression>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct BoundEachStatement {
+    pub name: String,
+    pub iterable: BoundExpression,
+    pub body: Box<BoundStatement>,
 }

@@ -109,19 +109,6 @@ impl DiagnosticBag {
         ))
     }
 
-    pub(crate) fn invalid_assignment(
-        &mut self,
-        position: Position,
-        name: String,
-        expected_type: Type,
-        given_type: Type,
-    ) {
-        self.diagnostics.push(Diagnostic::new(
-            position,
-            format!("Name '{name}' expects '{expected_type}', got '{given_type}'"),
-        ))
-    }
-
     pub(crate) fn invalid_expression_type(
         &mut self,
         position: Position,
